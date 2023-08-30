@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreMotion
 
 struct ContentView: View {
     
@@ -21,7 +22,7 @@ struct ContentView: View {
                 HStack {
                     Text(deviceParameter.name)
                     Text("\(deviceParameter.hp)")
-
+                    
                 }
             }
             
@@ -40,6 +41,9 @@ struct ContentView: View {
             }
         }
         .padding()
+        .onAppear {
+            deviceManagerSample.startAccelerometerUpdates()
+        }
         //        .sheet(isPresented: $isPresented) {
         //            ContentView2()
         //        }
@@ -56,6 +60,8 @@ struct ContentView2: View {
 class DeviceManagerExample: NSObject, ObservableObject {
     
     @Published var deviceParameters: [DeviceParameter] = []
+    private let motionManager = CMMotionManager()
+    
     
     override init() {
         super.init()
@@ -66,6 +72,33 @@ class DeviceManagerExample: NSObject, ObservableObject {
             DeviceParameter(hp: 300, name: "ううう"),
         ]
         
+    }
+    
+    func startAccelerometerUpdates() {
+        if motionManager.isAccelerometerAvailable {
+            motionManager.accelerometerUpdateInterval = 0.1
+            motionManager.startAccelerometerUpdates(to: .main) { [weak self] accelerometerData, error in
+                guard let accelerometerData = accelerometerData else { return }
+                
+                let acceleration = sqrt(accelerometerData.acceleration.x * accelerometerData.acceleration.x +
+                                        accelerometerData.acceleration.y * accelerometerData.acceleration.y +
+                                        accelerometerData.acceleration.z * accelerometerData.acceleration.z)
+                
+                if acceleration > 2.0 { // 調整が必要かもしれません
+                    self?.decreaseLowestHP()
+                }
+            }
+        }
+    }
+    
+    func decreaseLowestHP() {
+        if let minHPDevice = deviceParameters.min(by: { $0.hp < $1.hp }) {
+            var updatedDeviceParameters = deviceParameters
+            if let index = updatedDeviceParameters.firstIndex(where: { $0.id == minHPDevice.id }) {
+                updatedDeviceParameters[index].hp -= 1
+                deviceParameters = updatedDeviceParameters
+            }
+        }
     }
     
 }
